@@ -33,8 +33,7 @@ import (
 )
 
 const (
-	// TODO(Yuukirn): add usage
-	usage = ""
+	usage = "Flags:\n  -h, --help\tPrint this help and exit.\n      --version\tPrint the version and exit."
 )
 
 func main() {

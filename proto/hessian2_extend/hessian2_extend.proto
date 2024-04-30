@@ -57,3 +57,11 @@ message Hessian2EnumOptions {
 extend google.protobuf.EnumOptions {
   optional Hessian2EnumOptions enum_extend = 12345;
 }
+
+message Hessian2FieldOptions {
+  bool is_wrapper = 1;
+}
+
+extend google.protobuf.FieldOptions {
+  optional Hessian2FieldOptions field_extend = 12345;
+}

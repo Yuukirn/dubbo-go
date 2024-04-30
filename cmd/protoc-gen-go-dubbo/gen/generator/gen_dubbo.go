@@ -104,6 +104,13 @@ func ProcessProtoFile(g *protogen.GeneratedFile, file *protogen.File) (*Dubbogo,
 				}
 			}
 
+			for _, field := range method.Input.Fields {
+				fieldOpt, ok := proto.GetExtension(field.Desc.Options(), hessian2_extend.E_FieldExtend).(*hessian2_extend.Hessian2FieldOptions)
+				if ok && fieldOpt != nil && fieldOpt.IsWrapper {
+
+				}
+			}
+
 			outputOpt, ok := proto.GetExtension(method.Output.Desc.Options(), hessian2_extend.E_MessageExtend).(*hessian2_extend.Hessian2MessageOptions)
 			if ok && outputOpt != nil && outputOpt.ExtendArgs {
 				m.ResponseExtendArgs = true

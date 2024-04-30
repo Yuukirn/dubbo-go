@@ -23,11 +23,16 @@ import (
 
 import (
 	"google.golang.org/protobuf/compiler/protogen"
-
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
+import (
+	"dubbo.apache.org/dubbo-go/v3/proto/hessian2_extend"
+)
+
 // below is helper func that copy from protobuf-gen-go
+
 // FieldGoType returns the Go type used for a field.
 //
 // If it returns pointer=true, the struct field is a pointer to the type.
@@ -36,24 +41,45 @@ func FieldGoType(g *protogen.GeneratedFile, field *protogen.Field) (goType strin
 		return "struct{}", false
 	}
 
+	var isWrapper bool
+	opt, ok := proto.GetExtension(field.Desc.Options(), hessian2_extend.E_FieldExtend).(*hessian2_extend.Hessian2FieldOptions)
+	if ok && opt != nil {
+		isWrapper = opt.IsWrapper
+	}
+
 	pointer = field.Desc.HasPresence()
 	switch field.Desc.Kind() {
 	case protoreflect.BoolKind:
 		goType = "bool"
+		if isWrapper {
+			goType = "*" + goType
+		}
 	case protoreflect.EnumKind:
 		goType = g.QualifiedGoIdent(field.Enum.GoIdent)
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
 		goType = "int32"
+		if isWrapper {
+			goType = "*" + goType
+		}
 	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
 		goType = "uint32"
 	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
 		goType = "int64"
+		if isWrapper {
+			goType = "*" + goType
+		}
 	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
 		goType = "uint64"
 	case protoreflect.FloatKind:
 		goType = "float32"
+		if isWrapper {
+			goType = "*" + goType
+		}
 	case protoreflect.DoubleKind:
 		goType = "float64"
+		if isWrapper {
+			goType = "*" + goType
+		}
 	case protoreflect.StringKind:
 		goType = "string"
 	case protoreflect.BytesKind:

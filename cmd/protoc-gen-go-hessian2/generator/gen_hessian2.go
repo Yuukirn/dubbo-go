@@ -18,9 +18,13 @@
 package generator
 
 import (
-	"dubbo.apache.org/dubbo-go/v3/proto/hessian2_extend"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/proto"
+)
+
+import (
+	"dubbo.apache.org/dubbo-go/v3/cmd/protoc-gen-go-hessian2/util"
+	"dubbo.apache.org/dubbo-go/v3/proto/hessian2_extend"
 )
 
 type Hessian2Go struct {
@@ -81,11 +85,7 @@ func processProtoEnum(g *protogen.GeneratedFile, e *protogen.Enum) *Enum {
 	}
 	g.QualifiedGoIdent(e.GoIdent)
 
-	ext := proto.GetExtension(e.Desc.Options(), hessian2_extend.E_EnumExtend)
-	if ext == nil {
-		return enum
-	}
-	opts, ok := ext.(*hessian2_extend.Hessian2EnumOptions)
+	opts, ok := proto.GetExtension(e.Desc.Options(), hessian2_extend.E_EnumExtend).(*hessian2_extend.Hessian2EnumOptions)
 	if !ok {
 		return enum
 	}
@@ -105,49 +105,37 @@ func processProtoMessage(g *protogen.GeneratedFile, file *protogen.File, m *prot
 
 	for _, inner := range m.Messages {
 		processedInnerMsg := processProtoMessage(g, file, inner)
-		ext := proto.GetExtension(inner.Desc.Options(), hessian2_extend.E_MessageExtend)
-		if ext == nil {
-			msg.InnerMessages = append(msg.InnerMessages, processedInnerMsg)
-			continue
-		}
-		opts, _ := ext.(*hessian2_extend.Hessian2MessageOptions)
-		if opts != nil && opts.IsInheritance {
+		opts, ok := proto.GetExtension(inner.Desc.Options(), hessian2_extend.E_MessageExtend).(*hessian2_extend.Hessian2MessageOptions)
+		if ok && opts != nil && opts.IsInheritance {
 			processedInnerMsg.IsInheritance = true
-			msg.InnerMessages = append(msg.InnerMessages, processedInnerMsg)
 		}
+		msg.InnerMessages = append(msg.InnerMessages, processedInnerMsg)
 	}
 
 	var fields []*Field
 	for _, field := range m.Fields {
 		var typ string
 		if field.Message != nil {
-			ext := proto.GetExtension(field.Message.Desc.Options(), hessian2_extend.E_MessageExtend)
-			if ext != nil {
-				opts, _ := ext.(*hessian2_extend.Hessian2MessageOptions)
-				if opts != nil && opts.ReferencePath != "" {
-					typ = "*" + g.QualifiedGoIdent(protogen.GoIdent{
-						GoName:       field.Message.GoIdent.GoName,
-						GoImportPath: protogen.GoImportPath(opts.ReferencePath),
-					})
-				}
+			opts, ok := proto.GetExtension(field.Message.Desc.Options(), hessian2_extend.E_MessageExtend).(*hessian2_extend.Hessian2MessageOptions)
+			if ok && opts != nil && opts.ReferencePath != "" {
+				typ = "*" + g.QualifiedGoIdent(protogen.GoIdent{
+					GoName:       field.Message.GoIdent.GoName,
+					GoImportPath: protogen.GoImportPath(opts.ReferencePath),
+				})
 			}
 		}
 		if typ == "" {
-			typ = getGoType(g, field)
+			typ = util.GetGoType(g, field)
 		}
 		fields = append(fields, &Field{
 			Field:        field,
 			Type:         typ,
-			DefaultValue: fieldDefaultValue(g, file, m, field),
+			DefaultValue: util.FieldDefaultValue(g, file, m, field),
 		})
 	}
 	msg.Fields = fields
 
-	ext := proto.GetExtension(m.Desc.Options(), hessian2_extend.E_MessageExtend)
-	if ext == nil {
-		panic(ErrNoMessageExtend)
-	}
-	opts, ok := ext.(*hessian2_extend.Hessian2MessageOptions)
+	opts, ok := proto.GetExtension(m.Desc.Options(), hessian2_extend.E_MessageExtend).(*hessian2_extend.Hessian2MessageOptions)
 	if !ok {
 		panic(ErrNoMessageExtend)
 	}

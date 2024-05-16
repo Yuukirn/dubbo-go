@@ -19,6 +19,7 @@ package util
 
 import (
 	"fmt"
+	"strconv"
 )
 
 import (
@@ -30,6 +31,14 @@ import (
 import (
 	"dubbo.apache.org/dubbo-go/v3/proto/hessian2_extend"
 )
+
+func GetGoType(g *protogen.GeneratedFile, field *protogen.Field) (goType string) {
+	goType, pointer := FieldGoType(g, field)
+	if pointer {
+		goType = "*" + goType
+	}
+	return
+}
 
 // below is helper func that copy from protobuf-gen-go
 
@@ -100,30 +109,40 @@ func FieldGoType(g *protogen.GeneratedFile, field *protogen.Field) (goType strin
 	return goType, pointer
 }
 
-func DefaultValue(typeStr string) string {
-	switch typeStr {
-	case "int", "int8", "int16", "int32", "int64",
-		"uint", "uint8", "uint16", "uint32", "uint64",
-		"float32", "float64", "byte", "rune",
-		"complex64", "complex128":
-		return "0"
-	case "bool":
-		return "false"
-	case "string":
-		return `""`
-	default:
+// TODO(Yuukirn): add case for wrapper
+func FieldDefaultValue(g *protogen.GeneratedFile, f *protogen.File, m *protogen.Message, field *protogen.Field) string {
+	opts, ok := proto.GetExtension(field.Desc.Options(), hessian2_extend.E_FieldExtend).(hessian2_extend.Hessian2FieldOptions)
+	if ok && opts.IsWrapper {
 		return "nil"
 	}
-}
-
-func IsBasicType(typeStr string) bool {
-	switch typeStr {
-	case "int", "int8", "int16", "int32", "int64",
-		"uint", "uint8", "uint16", "uint32", "uint64",
-		"float32", "float64", "byte", "rune",
-		"complex64", "complex128", "bool", "string":
-		return true
+	if field.Desc.IsList() {
+		return "nil"
+	}
+	if field.Desc.HasDefault() {
+		defVarName := "Default_" + m.GoIdent.GoName + "_" + field.GoName
+		if field.Desc.Kind() == protoreflect.BytesKind {
+			return "append([]byte(nil), " + defVarName + "...)"
+		}
+		return defVarName
+	}
+	switch field.Desc.Kind() {
+	case protoreflect.BoolKind:
+		return "false"
+	case protoreflect.StringKind:
+		return `""`
+	case protoreflect.MessageKind, protoreflect.GroupKind, protoreflect.BytesKind:
+		return "nil"
+	case protoreflect.EnumKind:
+		val := field.Enum.Values[0]
+		if val.GoIdent.GoImportPath == f.GoImportPath {
+			return g.QualifiedGoIdent(val.GoIdent)
+		} else {
+			// If the enum value is declared in a different Go package,
+			// reference it by number since the name may not be correct.
+			// See https://github.com/golang/protobuf/issues/513.
+			return g.QualifiedGoIdent(field.Enum.GoIdent) + "(" + strconv.FormatInt(int64(val.Desc.Number()), 10) + ")"
+		}
 	default:
-		return false
+		return "0"
 	}
 }
